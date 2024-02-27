@@ -8,16 +8,15 @@ import (
 )
 
 type UniqueFlagForTick struct {
-	Id        string
-	TrickTime time.Duration
+	Id string
 }
 
 // TimeTickMap 用于映射计时器id和计时信号管道
 var TimeTickMap sync.Map
 
 // DoTick 延时操作
-func (t *UniqueFlagForTick) DoTick() (IsTimeOver bool, err error) {
-	timer := time.NewTimer(t.TrickTime)
+func (t *UniqueFlagForTick) DoTick(duration time.Duration) (IsTimeOver bool, err error) {
+	timer := time.NewTimer(duration)
 	TimeTickMap.Store(t.Id, make(chan struct{}))
 	defer timer.Stop()
 	for {

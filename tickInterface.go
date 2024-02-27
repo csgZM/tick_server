@@ -1,6 +1,5 @@
 package tick
 
-import "time"
 
 const (
 	TickForExample = "TickForExample:%s"
@@ -17,14 +16,9 @@ type IOperateTick interface {
 /*
 NewXSTickInfo内没有开启计时器条件,bool可以一直为true,计时器支持重新计时
 */
-type BaseTick struct {
-	TrickKey  string
-	TrickTime time.Duration
-}
+type BaseTick struct{}
 
-func (p *BaseTick) NewUniqueFlagForTick() *UniqueFlagForTick {
-	return &UniqueFlagForTick{Id: p.TrickKey, TrickTime: p.TrickTime}
-}
+func (p *BaseTick) NewUniqueFlagForTick() {}
 
 func (p *BaseTick) StartTick() {}
 
@@ -34,7 +28,6 @@ func (p *BaseTick) StopTick() {}
 
 func (p *BaseTick) TimeOverDo() {}
 
-func NewXSTickInfo(trickKey string) (IOperateTick, bool) {
-	tickInfo := &BaseTick{TrickKey: trickKey}
-	return tickInfo, true
+func NewXSTickInfo(uid uint32) (IOperateTick, bool) {
+
 }
