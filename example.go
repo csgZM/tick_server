@@ -6,11 +6,18 @@ import (
 )
 
 type TreasureBoxRefresh struct {
+	Info string
 	BaseTick
 }
 
-func (p *TreasureBoxRefresh) NewUniqueFlagForTick() *UniqueFlagForTick { //内部使用
-	return &UniqueFlagForTick{Id: fmt.Sprintf(TickForExample, "example")}
+func NewTreasureBoxRefresh(info string) *TreasureBoxRefresh {
+	return &TreasureBoxRefresh{
+		Info: info,
+		BaseTick: BaseTick{
+			TrickKey:  fmt.Sprintf(TickForExample, info),
+			TrickTime: time.Second * 10,
+		},
+	}
 }
 
 func (p *TreasureBoxRefresh) StartTick() {
@@ -18,13 +25,18 @@ func (p *TreasureBoxRefresh) StartTick() {
 }
 
 func (p *TreasureBoxRefresh) TickServe() {
-	tick := p.NewUniqueFlagForTick()
+	tick := p.BaseTick.NewUniqueFlagForTick()
 	tick.StopTick()
-	isTimeOver, err := tick.DoTick(time.Second * 10) //阻塞 开始计时10s
+	isTimeOver, err := tick.DoTick() //阻塞 开始计时10s
 	if err == nil {
 		if isTimeOver { //超时后处理逻辑
 		} else { //计时终止后的处理逻辑
 
 		}
 	}
+}
+
+func (p *TreasureBoxRefresh) StopTick() {
+	tick := p.BaseTick.NewUniqueFlagForTick()
+	tick.StopTick()
 }
