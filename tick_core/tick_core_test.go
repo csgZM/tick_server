@@ -25,15 +25,17 @@ func (t TestTickServiceModel) StopDoFunc() {
 }
 
 func TestTick(t *testing.T) {
+	tickPool := NewTickWithConf(10, 100)
 	test := &TestTickServiceModel{TestServiceData: "test"}
 	baseTick := BaseTick{
 		Id:          test.GetUniqueId(),
 		TrickTime:   time.Second * 5,
 		ServiceData: test,
+		TickPool:    tickPool,
 	}
 	t.Run("测试计时器 timeout", func(t *testing.T) {
 		baseTick.StartTick()
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 		stopTick, ok := timeTickMap.Load(baseTick.Id)
 		assert.Equal(t, true, ok)
 		assert.Equal(t, 0, len(stopTick.(chan struct{})))
@@ -73,5 +75,25 @@ func TestIntervalTick(t *testing.T) {
 		time.Sleep(8 * time.Second)
 		_, ok = timeTickMap.Load(baseTick2.Id)
 		assert.Equal(t, false, ok)
+	})
+}
+
+func TestTickPerformance(t *testing.T) {
+	tickPool := NewTickWithConf(10, 100)
+	t.Run("测试timer 是否复用", func(t *testing.T) {
+		for i := 0; i < 50; i++ {
+			test := &TestTickServiceModel{TestServiceData: fmt.Sprintf("test_%d", i)}
+			baseTick := BaseTick{
+				Id:          test.GetUniqueId(),
+				TrickTime:   time.Second * time.Duration(i%10+1),
+				ServiceData: test,
+				TickPool:    tickPool,
+			}
+			baseTick.StartTick()
+		}
+		for i := 0; i < 20; i++ {
+			time.Sleep(time.Second * 1)
+			fmt.Println(tickPool.GetFreeTimerListLen(), tickPool.runningNum)
+		}
 	})
 }

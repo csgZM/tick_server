@@ -10,48 +10,31 @@ var (
 	DefaultTickTime     = time.Second * 30
 	DefaultIntervalTime = time.Second * 1
 	CloseDeadLineTime   = time.Millisecond * 100
+	InitTickTime        = time.Duration(0)
 )
 
 // TimeTickMap 用于映射计时器id和计时信号管道
 var timeTickMap sync.Map
+
+var blockBaseTick []*BaseTick //超过tick池的最大容量后阻塞的计时器存储列表
+var blockBaseTickMutex sync.Mutex
 
 type BaseTick struct {
 	Id           string //保证唯一 不唯一会关闭前一个的计时器
 	TrickTime    time.Duration
 	IntervalTime time.Duration
 	ServiceData  TickServiceModel
+	TickPool     *TickWithConf
 }
 
-type TickWithConf struct {
-	timeTickMap   map[string]chan struct{} //计时器信号控制map
-	timerFreeList []*time.Timer            //空闲的计时器存储列表
-	effectiveNum  int32                    //计时器数量超出改值将空闲的进行释放
-	capacity      int32                    //timer 最大容量
-	runningNum    int32                    //运行的计时器数量
-	sync.Mutex
-}
-
-func (c *TickWithConf) GetFreeTimer() *time.Timer {
-	if len(c.timerFreeList) <= 0 {
-		if c.runningNum > c.capacity {
-			fmt.Println("超出规定最大可开启的计时器数量")
-			return nil
-		}
-		return c.NewTimer()
+func NewBaseTick(id string, trickTime, intervalTime time.Duration, serviceData TickServiceModel, tickPool *TickWithConf) *BaseTick {
+	return &BaseTick{
+		Id:           id,
+		TrickTime:    trickTime,
+		IntervalTime: intervalTime,
+		ServiceData:  serviceData,
+		TickPool:     tickPool,
 	}
-	tempTimer := c.timerFreeList[0]
-	c.Lock()
-	if len(c.timerFreeList) > 1 {
-		c.timerFreeList = c.timerFreeList[1:]
-	} else {
-		c.timerFreeList = c.timerFreeList[0:0]
-	}
-	c.Unlock()
-	return tempTimer
-}
-
-func (c *TickWithConf) NewTimer() *time.Timer {
-	return time.NewTimer(0)
 }
 
 func (p *BaseTick) StartTick() {
@@ -82,9 +65,16 @@ func (p *BaseTick) StartTickOfEvery() {
 
 // DoTick 延时操作
 func (p *BaseTick) doTick() {
-	timer := time.NewTimer(p.TrickTime)
+	timer := p.TickPool.GetFreeTimer()
+	if timer == nil {
+		blockBaseTickMutex.Lock()
+		blockBaseTick = append(blockBaseTick, p)
+		blockBaseTickMutex.Unlock()
+		return
+	}
+	timer.Reset(p.TrickTime)
 	timeTickMap.Store(p.Id, make(chan struct{}))
-	defer timer.Stop()
+	defer p.TickPool.PushToFreeTimerList(timer)
 	for {
 		stopTick, ok := timeTickMap.Load(p.Id)
 		if !ok {
@@ -143,4 +133,10 @@ func (p *BaseTick) stopTick() {
 			return
 		}
 	}
+}
+
+func GetBlockBaseTickLen() int {
+	blockBaseTickMutex.Lock()
+	defer blockBaseTickMutex.Unlock()
+	return len(blockBaseTick)
 }

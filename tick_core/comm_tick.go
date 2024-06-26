@@ -10,10 +10,6 @@ type TickServiceModel interface {
 type BaseTickServiceModel struct {
 }
 
-func (t BaseTickServiceModel) GetUniqueId() string {
-	return ""
-}
-
 func (t BaseTickServiceModel) OverDoFunc() {
 }
 
