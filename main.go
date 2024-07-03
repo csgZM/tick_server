@@ -8,7 +8,9 @@ import (
 
 /*
 目前项目存在的问题
-2. 项目重启会导致计时器失效
+1. 项目重启会导致计时器失效
+2. 日志优化
+3. timeTickMap 性能需要优化
 */
 
 type TestTickServiceModel struct {

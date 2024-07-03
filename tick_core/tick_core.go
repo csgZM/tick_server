@@ -42,8 +42,12 @@ func (p *BaseTick) StartTick() {
 		fmt.Println("warn:计时器时间为0，使用默认时间30s serviceId is ", p.Id)
 		p.TrickTime = DefaultTickTime
 	}
-	p.stopTick() // 如果已经存在，则先关闭旧的计时器
-	go p.doTick()
+	p.stopTick()           // 如果已经存在，则先关闭旧的计时器
+	if p.TickPool == nil { //未创建timer池，则使用旧的计时器
+		go p.oldDoTick()
+	} else {
+		go p.doTick()
+	}
 }
 
 func (p *BaseTick) StopTick() {
@@ -59,8 +63,13 @@ func (p *BaseTick) StartTickOfEvery() {
 		fmt.Println("warn:间隙计时器间隙时间为0，使用默认间隙时间1s serviceId is ", p.Id)
 		p.IntervalTime = DefaultIntervalTime
 	}
-	p.stopTick() // 如果已经存在，则先关闭旧的计时器
-	go p.doTickForEvery()
+	p.stopTick()           // 如果已经存在，则先关闭旧的计时器
+	if p.TickPool == nil { //未创建timer池，则使用旧的计时器
+		go p.oldDoTickForEvery()
+	} else {
+		go p.doTickForEvery()
+	}
+
 }
 
 // DoTick 延时操作
@@ -95,9 +104,16 @@ func (p *BaseTick) doTick() {
 
 // DoTickForEvery 支持每秒操作函数
 func (p *BaseTick) doTickForEvery() {
-	timer := time.NewTimer(p.TrickTime)
+	timer := p.TickPool.GetFreeTimer()
+	if timer == nil {
+		blockBaseTickMutex.Lock()
+		blockBaseTick = append(blockBaseTick, p)
+		blockBaseTickMutex.Unlock()
+		return
+	}
+	timer.Reset(p.TrickTime)
 	timeTickMap.Store(p.Id, make(chan struct{}))
-	ticker := time.NewTicker(time.Second * 1) //定义一个1秒间隔的定时器
+	ticker := time.NewTicker(p.IntervalTime) //定义一个间隔的定时器
 	defer ticker.Stop()
 	defer timer.Stop()
 	for {
@@ -139,4 +155,52 @@ func GetBlockBaseTickLen() int {
 	blockBaseTickMutex.Lock()
 	defer blockBaseTickMutex.Unlock()
 	return len(blockBaseTick)
+}
+
+func (p *BaseTick) oldDoTick() {
+	timer := time.NewTimer(p.TrickTime)
+	timeTickMap.Store(p.Id, make(chan struct{}))
+	defer timer.Stop()
+	for {
+		stopTick, ok := timeTickMap.Load(p.Id)
+		if !ok {
+			fmt.Println("计时器异常退出")
+		}
+		select {
+		case <-timer.C:
+			p.ServiceData.OverDoFunc()
+			timeTickMap.Delete(p.Id)
+			return
+		case <-stopTick.(chan struct{}):
+			p.ServiceData.StopDoFunc()
+			timeTickMap.Delete(p.Id)
+			return
+		}
+	}
+}
+
+func (p *BaseTick) oldDoTickForEvery() {
+	timer := time.NewTimer(p.TrickTime)
+	timeTickMap.Store(p.Id, make(chan struct{}))
+	ticker := time.NewTicker(p.IntervalTime) //定义一个间隔的定时器
+	defer ticker.Stop()
+	defer timer.Stop()
+	for {
+		stopTick, ok := timeTickMap.Load(p.Id)
+		if !ok {
+			fmt.Println("计时器异常退出")
+		}
+		select {
+		case <-timer.C:
+			p.ServiceData.OverDoFunc()
+			timeTickMap.Delete(p.Id)
+			return
+		case <-ticker.C:
+			p.ServiceData.EverSecondDoFunc()
+		case <-stopTick.(chan struct{}):
+			p.ServiceData.StopDoFunc()
+			timeTickMap.Delete(p.Id)
+			return
+		}
+	}
 }

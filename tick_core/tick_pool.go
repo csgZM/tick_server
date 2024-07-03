@@ -77,7 +77,6 @@ func (c *TickWithConf) releaseTimer() {
 		case <-ticker.C:
 			c.Lock()
 			if len(c.freeTimerList) > int(c.effectiveNum) {
-				//todo 是否存在内存逃逸？？？
 				for i := int(c.effectiveNum); i < len(c.freeTimerList); i++ {
 					c.freeTimerList[i].Stop()
 					c.freeTimerList[i] = nil
