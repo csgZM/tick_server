@@ -9,7 +9,7 @@ import (
 var (
 	DefaultTickTime     = time.Second * 30
 	DefaultIntervalTime = time.Second * 1
-	CloseDeadLineTime   = time.Millisecond * 100
+	CloseDeadLineTime   = time.Second * 100
 	InitTickTime        = time.Duration(0)
 )
 
@@ -20,9 +20,9 @@ var blockBaseTick []*BaseTick //超过tick池的最大容量后阻塞的计时�
 var blockBaseTickMutex sync.Mutex
 
 type BaseTick struct {
-	Id           string //保证唯一 不唯一会关闭前一个的计时器
-	TrickTime    time.Duration
-	IntervalTime time.Duration
+	Id           string        //保证唯一 不唯一会关闭前一个的计时器
+	TrickTime    time.Duration //计时时间
+	IntervalTime time.Duration //计时时间内 设置的间隔定时任务的间隔时间（doTickForEvery使用才需要传入有效值否则传入InitTickTime）
 	ServiceData  TickServiceModel
 	TickPool     *TickWithConf
 }
@@ -42,7 +42,7 @@ func (p *BaseTick) StartTick() {
 		fmt.Println("warn:计时器时间为0，使用默认时间30s serviceId is ", p.Id)
 		p.TrickTime = DefaultTickTime
 	}
-	p.stopTick()           // 如果已经存在，则先关闭旧的计时器
+	p.startForStop()       // 如果已经存在，则先关闭旧的计时器
 	if p.TickPool == nil { //未创建timer池，则使用旧的计时器
 		go p.oldDoTick()
 	} else {
@@ -51,7 +51,7 @@ func (p *BaseTick) StartTick() {
 }
 
 func (p *BaseTick) StopTick() {
-	p.stopTick()
+	go p.stopTick()
 }
 
 func (p *BaseTick) StartTickOfEvery() {
@@ -63,7 +63,7 @@ func (p *BaseTick) StartTickOfEvery() {
 		fmt.Println("warn:间隙计时器间隙时间为0，使用默认间隙时间1s serviceId is ", p.Id)
 		p.IntervalTime = DefaultIntervalTime
 	}
-	p.stopTick()           // 如果已经存在，则先关闭旧的计时器
+	p.startForStop()       // 如果已经存在，则先关闭旧的计时器
 	if p.TickPool == nil { //未创建timer池，则使用旧的计时器
 		go p.oldDoTickForEvery()
 	} else {
@@ -136,7 +136,7 @@ func (p *BaseTick) doTickForEvery() {
 	}
 }
 
-func (p *BaseTick) stopTick() {
+func (p *BaseTick) startForStop() {
 	stopTick, ok := timeTickMap.Load(p.Id)
 	timer := time.NewTimer(CloseDeadLineTime)
 	defer timer.Stop()
@@ -149,6 +149,25 @@ func (p *BaseTick) stopTick() {
 			return
 		}
 	}
+}
+
+func (p *BaseTick) stopTick() {
+	timer := time.NewTimer(CloseDeadLineTime)
+	defer timer.Stop()
+	for {
+		stopTick, ok := timeTickMap.Load(p.Id)
+		if ok {
+			select {
+			case stopTick.(chan struct{}) <- struct{}{}:
+				return
+			case <-timer.C:
+				fmt.Println("计时器关闭超时")
+				timeTickMap.Delete(p.Id) //超时处理，判断为异常情况导致map的key未删除
+				return
+			}
+		}
+	}
+
 }
 
 func GetBlockBaseTickLen() int {

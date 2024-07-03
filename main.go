@@ -31,24 +31,12 @@ func (t TestTickServiceModel) StopDoFunc() {
 }
 
 func main() {
-	//f, _ := os.OpenFile("cpu.pprof", os.O_CREATE|os.O_RDWR, 0644)
-	//defer f.Close()
-	//pprof.StartCPUProfile(f)
-	//defer pprof.StopCPUProfile()
-	//defer profile.Start(profile.MemProfile, profile.MemProfileRate(1)).Stop()
 	tickPool := tick_core.NewTickWithConf(1000, 10000)
-	for i := 0; i < 10001; i++ {
-		test := &TestTickServiceModel{TestServiceData: fmt.Sprintf("test_%d", i)}
-		baseTick := tick_core.BaseTick{
-			Id:          test.GetUniqueId(),
-			TrickTime:   time.Second * time.Duration(i%10+5),
-			ServiceData: test,
-			TickPool:    tickPool,
-		}
-		baseTick.StartTick()
-	}
-	for i := 0; i < 20; i++ {
-		time.Sleep(time.Second * 1)
-		fmt.Println(tickPool.GetFreeTimerListLen(), tickPool.GetRunningNum())
-	}
+	test := &TestTickServiceModel{TestServiceData: fmt.Sprintf("test_%d", 1)}
+	baseTick := tick_core.NewBaseTick(test.GetUniqueId(), time.Second*5, tick_core.InitTickTime, test, tickPool)
+	baseTick.StartTick()
+	time.Sleep(time.Second * 7)
+	baseTick.StartTick() //开启计时
+	baseTick.StopTick()
+	time.Sleep(time.Second * 2)
 }
