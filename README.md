@@ -20,6 +20,15 @@
 
 ``` go
 
-
+func main() {
+	tickPool := tick_core.NewTickWithConf(1000, 10000)
+	test := &TestTickServiceModel{TestServiceData: fmt.Sprintf("test_%d", 1)}
+	baseTick := tick_core.NewBaseTick(test.GetUniqueId(), time.Second*5, tick_core.InitTickTime, test, tickPool)
+	baseTick.StartTick()
+	time.Sleep(time.Second * 7)
+	baseTick.StartTick() //开启计时
+	baseTick.StopTick()
+	time.Sleep(time.Second * 2)
+}
 
 ```
