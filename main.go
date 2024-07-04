@@ -34,9 +34,9 @@ func main() {
 	tickPool := tick_core.NewTickWithConf(1000, 10000)
 	test := &TestTickServiceModel{TestServiceData: fmt.Sprintf("test_%d", 1)}
 	baseTick := tick_core.NewBaseTick(test.GetUniqueId(), time.Second*5, tick_core.InitTickTime, test, tickPool)
-	baseTick.StartTick()
-	time.Sleep(time.Second * 7)
-	baseTick.StartTick() //开启计时
-	baseTick.StopTick()
+	baseTick.StartTick()        //开启计时
+	time.Sleep(time.Second * 7) //等待计时完成 并执行计时完成逻辑
+	baseTick.StartTick()        //开启计时
+	baseTick.StopTick()         //业务关闭计时器并执行关闭后的业务逻辑
 	time.Sleep(time.Second * 2)
 }
