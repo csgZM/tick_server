@@ -34,7 +34,7 @@ func (t TestTickServiceModel) StopDoFunc() {
 }
 
 func main() {
-	tickPool := tick_core.NewTickWithConf(1000, 10000)
+	tickPool := tick_core.NewTickWithConf(1000, 10000) //timer池配置
 	test := &TestTickServiceModel{TestServiceData: fmt.Sprintf("test_%d", 1)}
 	baseTick := tick_core.NewBaseTick(test.GetUniqueId(), time.Second*5, tick_core.InitTickTime, test, tickPool)
 	baseTick.StartTick()        //开启计时
