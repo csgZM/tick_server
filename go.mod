@@ -1,4 +1,4 @@
-module tick_server
+module github.com/csgZM/tick_server
 
 go 1.22.2
 

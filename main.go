@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"tick_server/tick_core"
+	"github.com/csgZM/tick_server/tick_core"
 	"time"
 )
 
